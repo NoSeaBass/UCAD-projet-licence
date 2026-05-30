@@ -1,0 +1,57 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/146.0.7680.188 Electron/41.3.0 Safari/537.36" version="29.0.3" pages="2">
+  <diagram name="Cas d&#39;utilisation" id="KwdNgtC7JK9PIjgicvpp">
+    <mxGraphModel dx="1488" dy="708" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="LaRqz-98ui4BqjsKhzCt-1" target="LaRqz-98ui4BqjsKhzCt-9" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-1" value="Administrateur" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" parent="1" vertex="1">
+          <mxGeometry x="80" y="370" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-2" value="Directeur / Doyen" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" parent="1" vertex="1">
+          <mxGeometry x="80" y="480" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="LaRqz-98ui4BqjsKhzCt-3" target="LaRqz-98ui4BqjsKhzCt-12" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-3" value="Professeur" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" parent="1" vertex="1">
+          <mxGeometry x="80" y="590" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="LaRqz-98ui4BqjsKhzCt-6" target="LaRqz-98ui4BqjsKhzCt-15" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="LaRqz-98ui4BqjsKhzCt-6" target="LaRqz-98ui4BqjsKhzCt-14" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-6" value="Eleve / Etudiant" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" parent="1" vertex="1">
+          <mxGeometry x="80" y="730" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-8" value="Système Réseau avec serveur centralisé" style="swimlane;startSize=0;" parent="1" vertex="1">
+          <mxGeometry x="290" y="190" width="350" height="720" as="geometry" />
+        </mxCell>
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-9" value="Ajout Compte" style="ellipse;whiteSpace=wrap;html=1;" parent="LaRqz-98ui4BqjsKhzCt-8" vertex="1">
+          <mxGeometry x="30" y="40" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-12" value="Création de répertoire temporaire/definitives" style="ellipse;whiteSpace=wrap;html=1;" parent="LaRqz-98ui4BqjsKhzCt-8" vertex="1">
+          <mxGeometry x="30" y="285" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-14" value="Dépot rendus" style="ellipse;whiteSpace=wrap;html=1;" parent="LaRqz-98ui4BqjsKhzCt-8" vertex="1">
+          <mxGeometry x="30" y="580" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="LaRqz-98ui4BqjsKhzCt-15" value="Recupération de fichiers" style="ellipse;whiteSpace=wrap;html=1;" parent="LaRqz-98ui4BqjsKhzCt-8" vertex="1">
+          <mxGeometry x="30" y="490" width="140" height="70" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="Yi0Uz41sNNGa8qILyU0o" name="Activités">
+    <mxGraphModel dx="1488" dy="708" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
