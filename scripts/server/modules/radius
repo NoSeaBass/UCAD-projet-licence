@@ -1,0 +1,7 @@
+#!/bin/bash
+
+P=freeradius
+
+bash ./utils/verifypackage $P
+
+#echo "radius here"

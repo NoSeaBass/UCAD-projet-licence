@@ -1,0 +1,7 @@
+#!/bin/bash
+
+P=samba
+
+bash ./utils/verifypackage $P
+
+#echo "Samba got into the room"

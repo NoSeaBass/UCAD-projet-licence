@@ -1,0 +1,9 @@
+#!/bin/bash
+
+P=("slapd" "ldap-utils")
+
+for pkg in "${P[@]}"; do
+	bash ./utils/verifypackage "$pkg"
+done
+
+#echo "Sorry... or not LDAP's here"
