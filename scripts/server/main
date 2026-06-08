@@ -1,0 +1,10 @@
+#!/bin/bash
+
+bash ./modules/samba
+
+bash ./modules/ldap
+bash ./modules/mysql
+
+bash ./modules/radius
+
+# Verification après si tout marche

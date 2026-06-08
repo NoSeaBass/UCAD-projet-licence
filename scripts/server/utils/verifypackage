@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if dpkg-query -W -f='${Status}' "$1" 2> /dev/null | grep -q "install ok installed"; then
+	echo "$1 est installe"
+else
+	echo "$1 n'est pas present... installation"
+	echo "termine"
+fi
