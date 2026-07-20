@@ -28,3 +28,20 @@ Avec :
 Pour l'instant les scripts côté serveur sont mis en place avec :
 - vérification de présence des packages necessaires
 - configuration de base de radius à LDAP/MySQL
+
+[14-07-2026 22h40]Finalisation du couplage de LDAP et FreeRADIUS.
+J'ai recommencé la configuration de FreeRADIUS pour le couplage avec LDAP car je me perdais dans mes vieux scripts du coups j'ai décider de reconfigurer le serveur en commençant par une configuration vide et en ajoutant les éléments nécessaires étape par étape :
+
+- Configuration de base de FreeRADIUS
+- Configuration de l'authentification LDAP
+- Configuration des groupes et des autorisations
+
+Une fois la configuration terminée, je me suis assuré que le serveur fonctionne correctement en testant l'authentification avec un utilisateur LDAP. Et puis je couplerais FreeRADIUS avec Samba pour les répertoires.
+
+J'ai aussi ajouer un flake.nix pour obternir pour utiliser Cubic via ma machine NixOS. Les détails seront inclus prochainement dans la documentation dans la partie des problèmes rencontrés.
+
+Prochainement je retournerai sur la documentation car beaucoup d'information nécessaire manque.
+
+[20-07-2026]Pré-soutenance.
+Je dois revoir le titre et tout le projet
+J'aimerais aussi revoir mes documentation, le plan mais surtout le cahier de charge
