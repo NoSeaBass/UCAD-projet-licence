@@ -45,3 +45,6 @@ Prochainement je retournerai sur la documentation car beaucoup d'information né
 [20-07-2026]Pré-soutenance.
 Je dois revoir le titre et tout le projet
 J'aimerais aussi revoir mes documentation, le plan mais surtout le cahier de charge
+
+[31-07-2026]Révisions des documents
+J'ai put prendre mon temps et réecrire le sujet réglant ainsi le malentendus... Après présentation du nouveau document, je me remettrais à la conception
