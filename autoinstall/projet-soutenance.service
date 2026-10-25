@@ -1,0 +1,26 @@
+[Unit]
+Description=Configuration du serveur pedagogique
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/etc/projet-soutenance/configured
+Conflicts=getty@tty1.service
+After=getty@tty1.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Restart=no
+ExecStartPre=/bin/sleep 3
+ExecStart=/opt/projet-soutenance/scripts/configure.sh
+StandardInput=tty-force
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+Environment=TERM=linux
+Environment=HOME=/root
+TimeoutStartSec=1800
+
+[Install]
+WantedBy=multi-user.target

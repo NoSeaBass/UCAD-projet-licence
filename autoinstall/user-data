@@ -1,0 +1,27 @@
+#cloud-config
+autoinstall:
+  version: 1
+  interactive-sections:
+    - locale
+    - keyboard
+    - network
+    - storage
+    - identity
+
+  ssh:
+    install-server: true
+    allow-pw: true
+
+  packages:
+    - git
+    - curl
+    - vim
+    - whiptail
+
+  late-commands:
+    - curtin in-target -- mkdir -p /opt/projet-soutenance
+    - curtin in-target -- cp -r /cdrom/projet-soutenance/. /opt/projet-soutenance/
+    - curtin in-target -- cp /opt/projet-soutenance/autoinstall/projet-soutenance.service /etc/systemd/system/
+    - curtin in-target -- systemctl enable projet-soutenance.service
+
+  shutdown: reboot

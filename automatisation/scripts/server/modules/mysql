@@ -1,7 +1,0 @@
-#!/bin/bash
-
-P=mysql-server
-
-bash ./utils/verifypackage $P
-
-#echo "mysql"
