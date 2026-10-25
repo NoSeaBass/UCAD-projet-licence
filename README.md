@@ -1,3 +1,4 @@
+```
 # ============================================================
 # Serveur pédagogique - Projet de soutenance
 # ============================================================
@@ -10,7 +11,7 @@
 # Il est conçu comme un environnement de laboratoire / démonstrateur,
 # et non comme un environnement de production prêt à l'emploi.
 # ============================================================
-
+```
 # Serveur pédagogique - Projet de soutenance
 
 ## Description
