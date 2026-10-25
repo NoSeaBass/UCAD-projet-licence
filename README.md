@@ -1,17 +1,43 @@
+# ============================================================
+# Serveur pédagogique - Projet de soutenance
+# ============================================================
+# README du projet
+#
+# Ce dépôt contient une maquette fonctionnelle d'infrastructure
+# pédagogique locale basée sur Ubuntu Server, OpenLDAP, Samba,
+# SSSD, FreeRADIUS et des scripts Bash d'automatisation.
+#
+# Il est conçu comme un environnement de laboratoire / démonstrateur,
+# et non comme un environnement de production prêt à l'emploi.
+# ============================================================
+
 # Serveur pédagogique - Projet de soutenance
 
 ## Description
 
-Ce projet automatise le déploiement d'un serveur pédagogique pour un centre
-de formation. À partir d'une machine vierge, une ISO personnalisée installe
-Ubuntu Server 24.04 LTS et configure automatiquement :
+Ce projet automatise le déploiement d'un serveur pédagogique pour un centre de formation.
+À partir d'une machine vierge, une ISO personnalisée installe Ubuntu Server 24.04 LTS et configure automatiquement :
 
-- **OpenLDAP** : annuaire central des identités (utilisateurs, groupes)
-- **Samba** : partage de ressources pédagogiques avec ACL par groupe
-- **SSSD** : résolution des identités LDAP côté Linux
-- **FreeRADIUS** : authentification réseau par email (AAA)
-- **TLS** : certificats internes pour LDAPS et FreeRADIUS
-- **UFW + SSH** : sécurité de base
+- OpenLDAP : annuaire central des identités (utilisateurs, groupes)
+- Samba : partage de ressources pédagogiques avec ACL par groupe
+- SSSD : résolution des identités LDAP côté Linux
+- FreeRADIUS : authentification réseau par email (AAA)
+- TLS : certificats internes pour LDAPS et FreeRADIUS
+- UFW + SSH : sécurité de base
+
+## État du projet
+
+Ce dépôt correspond à une maquette de laboratoire fonctionnelle, destinée à valider une architecture et à démontrer un flux de déploiement automatisé.
+
+Il est adapté à :
+- un environnement de cours / de démonstration
+- une petite infrastructure pédagogique locale
+- une validation de concept technique
+
+Il n'est pas conçu comme :
+- une plateforme de production sans revue de sécurité
+- un environnement complet avec gestion des secrets en production
+- un remplacement de solutions telles que Samba AD DC / FreeIPA pour des parcs Windows complexes
 
 ## Objectifs
 
@@ -20,6 +46,7 @@ Ubuntu Server 24.04 LTS et configure automatiquement :
 - Permettre l'accès aux ressources pédagogiques depuis Windows et Linux.
 - Offrir une authentification unifiée (LDAP, RADIUS, SMB).
 - Sécuriser les échanges avec TLS.
+- Préparer un environnement de démonstration pédagogique réaliste.
 
 ## Prérequis
 
@@ -34,9 +61,9 @@ Ubuntu Server 24.04 LTS et configure automatiquement :
 ### Machine de build (pour créer l'ISO)
 
 - Linux Mint, Ubuntu ou Debian
-- [Cubic](https://github.com/PJ-Singh-001/Cubic) installé
+- Cubic installé
 - 10 Go d'espace libre
-- Le fichier ISO Ubuntu Server 24.04 LTS
+- ISO Ubuntu Server 24.04 LTS
 
 ## Arborescence
 
@@ -65,122 +92,84 @@ Ubuntu Server 24.04 LTS et configure automatiquement :
     │   ├── meta-data
     │   └── projet-soutenance.service
     └── docs/
-        ├── 01-architecture.md
-        ├── 02-installation.md
-        ├── 03-configuration.md
-        ├── 04-tests.md
-        ├── 05-securite.md
-        ├── 06-depannage.md
-        └── schemas/
+        ├── architecture.md
+        ├── installation.md
+        ├── configuration.md
+        ├── tests.md
+        ├── securite.md
+        └── dépannage.md
 
-## Installation
+## Installation rapide
 
-### 1. Créer l'ISO personnalisée
+### 1. Préparer l'ISO
 
-Suivre la procédure détaillée dans `docs/02-installation.md`.
-
-Résumé :
-- Ouvrir le projet Cubic.
-- Copier le projet dans `/cdrom/projet-soutenance/`.
-- Copier `user-data` et `meta-data` dans `/cdrom/autoinstall/`.
-- Modifier `grub.cfg` pour ajouter l'option `autoinstall`.
-- Générer l'ISO.
+- Copier les fichiers du projet dans un dossier de build compatible avec Cubic.
+- Ajouter le fichier `autoinstall/user-data` et les fichiers associés.
+- Démarrer l'installation Ubuntu Server 24.04 LTS avec Autoinstall.
 
 ### 2. Déployer sur une machine vierge
 
 - Démarrer la VM ou la machine physique sur l'ISO.
-- Suivre les étapes interactives (langue, réseau, partitionnement, compte).
+- Suivre les étapes interactives de l'installateur.
 - Attendre la fin de l'installation.
-- Au premier démarrage, répondre aux questions de `configure.sh`.
+- Au premier démarrage, lancer la configuration interactive ou relancer les scripts manuellement.
 
-### 3. Vérifier
+### 3. Vérifier le déploiement
 
     sudo bash /opt/projet-soutenance/tests/run-tests.sh
 
-Résultat attendu : **35 tests réussis, 0 échec**.
+Résultat attendu : validation des composants principaux, avec une attention particulière portée aux tests de refus d'accès et à la cohérence des permissions.
 
 ## Configuration
 
-Toutes les valeurs modifiables sont dans `config/config.env`, généré au
-premier démarrage par `configure.sh`. Le modèle `config/config.env.example`
-sert de documentation.
+Les paramètres modifiables sont stockés dans `config/config.env` généré au premier démarrage par `configure.sh`. Le fichier `config/config.env.example` sert de modèle.
 
 ### Variables principales
 
-| Variable              | Description                      | Valeur par défaut       |
-|-----------------------|----------------------------------|-------------------------|
-| `HOSTNAME`            | Nom du serveur                   | serveur-peda            |
-| `TIMEZONE`            | Fuseau horaire                   | Africa/Dakar            |
-| `IP_ADDRESS`          | Adresse IP (CIDR)                | (DHCP si vide)          |
-| `GATEWAY`             | Passerelle                       | 192.168.122.1           |
-| `DNS_SERVERS`         | Serveurs DNS                     | 127.0.0.1 8.8.8.8       |
-| `LDAP_DOMAIN`         | Domaine DNS                      | etablissement.local     |
-| `LDAP_BASE_DN`        | Base DN                          | dc=etablissement,dc=local |
-| `LDAP_ADMIN_PASSWORD` | Mot de passe admin LDAP          | admin                   |
-| `SAMBA_WORKGROUP`     | Workgroup Samba                  | ETABLISSEMENT           |
-| `USER_PASSWORD`       | Mot de passe des utilisateurs    | user                    |
-| `RADIUS_SHARED_SECRET`| Secret partagé RADIUS            | admin                   |
-| `SHARES_BASE`         | Répertoire de base des partages  | /srv/partages           |
+- `HOSTNAME`
+- `TIMEZONE`
+- `IP_ADDRESS`
+- `GATEWAY`
+- `DNS_SERVERS`
+- `LDAP_DOMAIN`
+- `LDAP_BASE_DN`
+- `LDAP_ADMIN_PASSWORD`
+- `SAMBA_WORKGROUP`
+- `USER_PASSWORD`
+- `RADIUS_SHARED_SECRET`
+- `SHARES_BASE`
 
-### Configuration réseau
+## Sécurité et bonnes pratiques
 
-`config.env.example` propose `DNS_SERVERS="127.0.0.1 8.8.8.8"`.
+### Attention importante
 
-- Le premier (127.0.0.1) suppose que le serveur fait aussi office de resolver.
-- Le second (8.8.8.8) est un DNS public de secours.
+Les valeurs par défaut suivantes sont volontairement simples pour faciliter la démonstration dans un environnement de test :
 
-Adaptez selon votre environnement :
-- DNS d'entreprise : mettez son adresse en premier.
-- Pas de resolver local : retirez 127.0.0.1.
-- Hors ligne : mettez l'adresse de votre passerelle.
+- `LDAP_ADMIN_PASSWORD=admin`
+- `USER_PASSWORD=user`
+- `RADIUS_SHARED_SECRET=admin`
 
-## Sécurité
+Ceci est acceptable pour une maquette, mais ne doit pas être considéré comme un usage sûr en production.
 
-### Mesures appliquées
+### Recommandations minimales
 
-- **Pare-feu UFW** : deny par défaut, ports 22, 139, 445, 389, 636, 1812, 1813.
-- **SSH durci** : `PermitRootLogin no`, `MaxAuthTries 3`, `X11Forwarding no`.
-- **Permissions** : `sssd.conf` en 600, `smb.conf` en 640.
-- **TLS** : CA interne, LDAPS sur slapd, certificats FreeRADIUS.
-- **Sauvegardes** : chaque fichier de configuration écrasé est sauvegardé en `.bak.<timestamp>`.
+- Modifier les mots de passe avant toute utilisation autre qu'un laboratoire.
+- Utiliser un gestionnaire de secrets ou au moins un fichier de configuration chiffré.
+- Limiter les ports ouverts avec UFW.
+- Vérifier les ACL LDAP et les permissions Samba.
+- Ne pas exposer le service directement sur un réseau non maîtrisé.
 
-### Important : changer les mots de passe par défaut
+### Mesures déjà appliquées
 
-Après la configuration, **changez le mot de passe administrateur LDAP** :
+- Pare-feu UFW par défaut
+- SSH durci
+- permissions restreintes sur les fichiers de configuration
+- génération d'une CA interne
+- activation de LDAPS et d'un certificat FreeRADIUS
 
-    ldappasswd -x -H ldaps://localhost \
-        -D "cn=admin,dc=etablissement,dc=local" \
-        -W -S "cn=admin,dc=etablissement,dc=local"
+## Scripts
 
-Les mots de passe par défaut sont `admin` (LDAP, RADIUS) et `user`
-(utilisateurs de test). Ces valeurs sont volontairement simples pour
-faciliter les tests. **Un administrateur compétent les changera avant
-tout déploiement en production.**
-
-`config/config.env` contient les secrets en clair, protégé en `600 root:root`.
-Pour un déploiement réel, utilisez un gestionnaire de secrets.
-
-Voir `docs/05-securite.md` pour les limites et recommandations.
-
-## Tests
-
-La suite `tests/run-tests.sh` exécute **35 tests** :
-
-- **Système** (8) : hostname, timezone, paquets installés
-- **LDAP** (13) : service, DIT, groupes, utilisateurs, attributs Samba, SSSD
-- **Samba** (11) : services, smb.conf, pdbedit, partages, ACL
-- **RADIUS** (3) : service, Access-Accept, Access-Reject
-
-Lancer :
-
-    sudo bash /opt/projet-soutenance/tests/run-tests.sh
-
-Voir `docs/04-tests.md` pour la liste détaillée.
-
-## Relancer les scripts manuellement
-
-Si vous avez modifié `config/config.env` et souhaitez réappliquer la
-configuration, relancez les scripts dans l'ordre :
+L'ordre recommandé de lancement des scripts est le suivant :
 
     sudo bash /opt/projet-soutenance/scripts/system.sh
     sudo bash /opt/projet-soutenance/scripts/openldap.sh
@@ -189,63 +178,62 @@ configuration, relancez les scripts dans l'ordre :
     sudo bash /opt/projet-soutenance/scripts/integration.sh
     sudo bash /opt/projet-soutenance/scripts/security.sh
 
-Pour repasser par l'interface interactive (`configure.sh`), supprimez
-d'abord le marqueur :
+### Relancer l'interface interactive
+
+Si vous souhaitez refaire la configuration interactive :
 
     sudo rm /etc/projet-soutenance/configured
     sudo systemctl start projet-soutenance.service
 
-## Clients
+## Tests
 
-### Client Windows
+La suite `tests/run-tests.sh` vérifie les composants principaux du système :
 
-Monter un lecteur réseau :
-
-    net use Z: \\<ip-serveur>\cours /user:ETABLISSEMENT\enseignant01 user
-
-**Important** : utiliser une invite de commandes **normale**, pas
-administrateur. Windows isole les sessions.
-
-### Client Linux
-
-Monter un partage CIFS :
-
-    sudo mkdir -p /mnt/cours
-    sudo mount -t cifs //<ip-serveur>/cours /mnt/cours \
-        -o username=enseignant01,password=user,domain=ETABLISSEMENT
-
-### Application Java (bonus)
-
-Une application Java permet de s'authentifier via RADIUS (email + mot de
-passe) et de monter automatiquement le partage correspondant au groupe.
+- système
+- OpenLDAP
+- Samba
+- SSSD
+- FreeRADIUS
+- permissions et accès
 
 ## Dépannage
 
-Voir `docs/06-depannage.md` pour les problèmes courants et leurs solutions.
-
 En cas de blocage :
 
-1. Noter le message d'erreur exact.
-2. Consulter les logs :
+1. Identifier précisément le message d'erreur.
+2. Consulter les logs du service concerné.
+3. Vérifier la cohérence des variables dans `config/config.env`.
+4. Relancer les scripts dans l'ordre recommandé.
 
-       sudo journalctl -u <service> --no-pager | tail -50
-       sudo tail -50 /var/log/samba/log.smbd
-       sudo tail -50 /var/log/freeradius/radius.log
+Exemples utiles :
 
-3. Vérifier la cohérence avec `config/config.env`.
+    sudo journalctl -u slapd --no-pager -n 50
+    sudo journalctl -u smbd --no-pager -n 50
+    sudo journalctl -u freeradius --no-pager -n 50
+    sudo tail -50 /var/log/samba/log.smbd
 
 ## Documentation
 
-- `docs/01-architecture.md` : schémas et flux
-- `docs/02-installation.md` : Cubic, Autoinstall, déploiement
-- `docs/03-configuration.md` : variables et scripts
-- `docs/04-tests.md` : 35 tests détaillés
-- `docs/05-securite.md` : mesures, limites, recommandations
-- `docs/06-depannage.md` : problèmes et solutions
+- `docs/architecture.md` : architecture globale
+- `docs/installation.md` : procédure de déploiement
+- `docs/configuration.md` : configuration et variables
+- `docs/tests.md` : validation fonctionnelle
+- `docs/securite.md` : sécurité et limites
+- `docs/dépannage.md` : aide pour corriger les erreurs
 
 ## Auteur
 
-Papa Ibrahima DIOP
-Université Cheikh Anta Diop
-Année académique 2025-2026
+Papa Ibrahima DIOP  
+Université Cheikh Anta Diop  
+Année académique 2025-2026  
 Encadreur : Dr Malaw Ndiaye
+
+## Contribution et amélioration
+
+Les améliorations à prioriser sont :
+
+- sécuriser davantage les secrets
+- utiliser des comptes de service dédiés plus strictement
+- renforcer les tests de refus d'accès
+- mesurer le temps de déploiement
+- documenter explicitement les limites de la solution
