@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Applique les mesures de securite : UFW, SSH, permissions, TLS.
 
 set -euo pipefail
 
@@ -9,7 +8,6 @@ FR_DIR="/etc/freeradius/3.0"
 export PROJECT_ROOT
 source "${SCRIPT_DIR}/lib.sh"
 
-# Etape 0 : Creer les repertoires necessaires
 mkdir -p /run/sshd
 chmod 0755 /run/sshd
 
@@ -24,7 +22,6 @@ chown freerad:freerad /etc/freeradius/3.0/certs 2>/dev/null || true
 require_root
 load_config
 
-# Etape 1 : Pare-feu UFW
 log_info "Configuration du pare-feu UFW..."
 
 if ! command -v ufw >/dev/null 2>&1; then
@@ -38,7 +35,11 @@ ufw allow 22/tcp >/dev/null
 ufw allow 445/tcp >/dev/null
 ufw allow 139/tcp >/dev/null
 
-SUBNET=$(echo "$IP_ADDRESS" | awk -F. '{print $1"."$2"."$3".0/24"}')
+INTERFACE=$(ip -4 route show default | awk 'NR == 1 {print $5}')
+SUBNET=$(ip -4 route show dev "$INTERFACE" proto kernel scope link | awk 'NR == 1 {print $1}')
+if [[ -z "$SUBNET" ]]; then
+    die "Impossible de detecter le sous-reseau configure dans Autoinstall."
+fi
 ufw allow from "$SUBNET" to any port 389 proto tcp >/dev/null
 ufw allow from "$SUBNET" to any port 636 proto tcp >/dev/null
 
@@ -48,7 +49,6 @@ ufw allow 1813/udp >/dev/null
 ufw --force enable >/dev/null
 log_ok "UFW active avec les regles de base."
 
-# Etape 2 : Durcissement SSH
 log_info "Durcissement de la configuration SSH..."
 
 SSHD_CONF="/etc/ssh/sshd_config"
@@ -73,7 +73,6 @@ set_sshd_option "X11Forwarding" "no"
 set_sshd_option "MaxAuthTries" "3"
 set_sshd_option "LoginGraceTime" "30"
 
-# Verifier la syntaxe (le repertoire /run/sshd existe maintenant)
 if ! sshd -t; then
     log_error "Configuration SSH invalide. Restauration depuis ${SSHD_CONF}.orig"
     cp "${SSHD_CONF}.orig" "$SSHD_CONF"
@@ -85,7 +84,6 @@ sleep 1
 check_service ssh
 log_ok "SSH durci."
 
-# Etape 3 : Autorite de certification interne
 log_info "Verification de l'autorite de certification..."
 
 CA_DIR="/etc/projet-soutenance/tls"
@@ -106,24 +104,20 @@ else
     log_ok "CA deja presente."
 fi
 
-# Ajouter la CA au magasin de confiance du systeme
 cp "$CA_CERT" /usr/local/share/ca-certificates/projet-soutenance-ca.crt
 update-ca-certificates >/dev/null 2>&1
 
-# Configurer ldap.conf pour la verification des certificats
 cat > /etc/ldap/ldap.conf <<EOF
 TLS_CACERT /etc/ldap/ca.crt
 EOF
 
 log_ok "CA ajoutee au magasin de confiance."
 
-# Fichier d'extensions commun (subjectAltName)
 cat > "$EXT_FILE" <<EOF
 subjectAltName=DNS:$HOSTNAME,DNS:$HOSTNAME.$LDAP_DOMAIN,DNS:localhost,IP:127.0.0.1
 EOF
 chmod 644 "$EXT_FILE"
 
-# Etape 4 : Certificat serveur pour OpenLDAP
 log_info "Generation du certificat serveur pour OpenLDAP..."
 
 LDAP_KEY="$CA_DIR/ldap.key"
@@ -154,7 +148,6 @@ chown openldap:openldap /etc/ldap/ldap.key /etc/ldap/ldap.crt /etc/ldap/ca.crt
 chmod 600 /etc/ldap/ldap.key
 chmod 644 /etc/ldap/ldap.crt /etc/ldap/ca.crt
 
-# Etape 5 : Activation de LDAPS dans slapd
 log_info "Activation de LDAPS dans slapd..."
 
 TLS_LDIF=$(mktemp)
@@ -180,9 +173,9 @@ rm -f "$TLS_LDIF"
 
 SLAPD_DEFAULT="/etc/default/slapd"
 backup_file "$SLAPD_DEFAULT"
-if ! grep -q 'ldaps:///' "$SLAPD_DEFAULT"; then
-    sed -i 's|^SLAPD_SERVICES=.*|# SLAPD_SERVICES=disabled|' "$SLAPD_DEFAULT"
-    sed -i 's|^# SLAPD_SERVICES=.*|# SLAPD_SERVICES=disabled|' "$SLAPD_DEFAULT"
+if grep -q '^SLAPD_SERVICES=' "$SLAPD_DEFAULT"; then
+    sed -i 's|^SLAPD_SERVICES=.*|SLAPD_SERVICES="ldap:/// ldapi:/// ldaps:///"|' "$SLAPD_DEFAULT"
+else
     echo 'SLAPD_SERVICES="ldap:/// ldapi:/// ldaps:///"' >> "$SLAPD_DEFAULT"
 fi
 log_ok "SLAPD_SERVICES mis a jour pour LDAPS."
@@ -197,12 +190,11 @@ else
     log_error "LDAPS n'ecoute pas sur le port 636."
 fi
 
-# Etape 6 : Mise a jour de SSSD pour LDAPS
 log_info "Mise a jour de SSSD pour utiliser LDAPS..."
 
 if [[ -f /etc/sssd/sssd.conf ]]; then
     backup_file /etc/sssd/sssd.conf
-    sed -i 's|^ldap_uri = ldap://.*|ldap_uri = ldaps://localhost|' /etc/sssd/sssd.conf
+    sed -i 's|^ldap_uri = ldap://.*|ldap_uri = ldaps://127.0.0.1|' /etc/sssd/sssd.conf
 
     if ! grep -q "^ldap_tls_cacert" /etc/sssd/sssd.conf; then
         sed -i '/^\[domain\//a ldap_tls_cacert = /etc/ldap/ca.crt\nldap_tls_reqcert = demand' /etc/sssd/sssd.conf
@@ -230,12 +222,6 @@ if [[ -f /etc/sssd/sssd.conf ]]; then
     fi
 fi
 
-# Desactiver les sockets systemd en conflit avec SSSD
-systemctl disable sssd-nss.socket 2>/dev/null || true
-systemctl disable sssd-pam.socket 2>/dev/null || true
-systemctl disable sssd-pam-priv.socket 2>/dev/null || true
-
-# Ajouter un drop-in pour attendre le reseau
 mkdir -p /etc/systemd/system/sssd.service.d
 cat > /etc/systemd/system/sssd.service.d/override.conf <<EOF
 [Unit]
@@ -244,17 +230,14 @@ Wants=network-online.target
 EOF
 
 systemctl daemon-reload
-log_ok "SSSD : sockets desactives, drop-in reseau ajoute."
+log_ok "Configuration reseau SSSD appliquee."
 
-# Etape 7 : Certificat pour FreeRADIUS
 log_info "Generation du certificat pour FreeRADIUS..."
 
-# Configurer FreeRADIUS EAP pour utiliser le certificat
 EAP_CONF="$FR_DIR/mods-available/eap"
 if [[ -f "$EAP_CONF" ]]; then
     backup_file "$EAP_CONF"
 
-    # Remplacer les chemins de certificat
     sed -i 's|^\s*private_key_file = .*|    private_key_file = /etc/freeradius/3.0/certs/server.key|' "$EAP_CONF"
     sed -i 's|^\s*certificate_file = .*|    certificate_file = /etc/freeradius/3.0/certs/server.crt|' "$EAP_CONF"
     sed -i 's|^\s*ca_file = .*|    ca_file = /etc/freeradius/3.0/certs/ca.crt|' "$EAP_CONF"
@@ -292,7 +275,6 @@ chown freerad:freerad /etc/freeradius/3.0/certs/server.key \
 chmod 600 /etc/freeradius/3.0/certs/server.key
 chmod 644 /etc/freeradius/3.0/certs/server.crt /etc/freeradius/3.0/certs/ca.crt
 
-# Etape 8 : Permissions des fichiers sensibles
 log_info "Verification des permissions des fichiers sensibles..."
 
 if [[ -f /etc/sssd/sssd.conf ]]; then
@@ -330,7 +312,6 @@ if [[ -f /etc/projet-soutenance/service-accounts.env ]]; then
     log_ok "/etc/projet-soutenance/service-accounts.env en 600 root:root."
 fi
 
-# Override systemd pour FreeRADIUS : demarrer apres slapd
 log_info "Configuration de l'override systemd pour FreeRADIUS..."
 
 mkdir -p /etc/systemd/system/freeradius.service.d
@@ -343,7 +324,6 @@ EOF
 systemctl daemon-reload
 log_ok "Override systemd FreeRADIUS applique."
 
-# Etape 9 : Reactivation de FreeRADIUS
 if ! systemctl is-active --quiet freeradius; then
     log_info "Demarrage de FreeRADIUS..."
     systemctl enable freeradius >/dev/null 2>&1 || true

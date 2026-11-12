@@ -1,25 +1,21 @@
 #!/usr/bin/env bash
-# Configure SSSD, applique les permissions sur les partages, integre Samba.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 export PROJECT_ROOT
-# shellcheck source=lib.sh
 source "${SCRIPT_DIR}/lib.sh"
 
 require_root
 load_config
 
 if [[ -f /etc/projet-soutenance/service-accounts.env ]]; then
-    # shellcheck disable=SC1091
     source /etc/projet-soutenance/service-accounts.env
 else
     die "Fichier /etc/projet-soutenance/service-accounts.env introuvable. Executer openldap.sh d'abord."
 fi
 
-# Etape 1 : Configurer SSSD
 log_info "Configuration de SSSD..."
 
 backup_file /etc/sssd/sssd.conf
@@ -39,7 +35,7 @@ filter_groups = root
 [domain/$LDAP_DOMAIN]
 id_provider = ldap
 auth_provider = ldap
-ldap_uri = ldap://localhost
+ldap_uri = ldap://127.0.0.1
 ldap_search_base = $LDAP_BASE_DN
 ldap_default_bind_dn = $SSSD_BIND_DN
 ldap_default_authtok_type = password
@@ -69,7 +65,6 @@ chown root:root /etc/sssd/sssd.conf
 
 log_ok "sssd.conf ecrit."
 
-# Etape 2 : Activer NSS pour SSSD
 log_info "Activation de NSS pour SSSD..."
 
 if ! grep -q "^passwd:.*sss" /etc/nsswitch.conf; then
@@ -81,19 +76,17 @@ fi
 
 log_ok "NSS configure pour SSSD."
 
-# Etape 3 : Activer PAM pour SSSD et mkhomedir
 log_info "Activation de PAM pour SSSD..."
 pam-auth-update --enable sssd --enable mkhomedir --force
 log_ok "PAM configure."
 
-# Etape 4 : Demarrer SSSD
 log_info "Demarrage de SSSD..."
+systemctl disable --now sssd-nss.socket sssd-pam.socket sssd-pam-priv.socket >/dev/null 2>&1 || true
 systemctl enable sssd >/dev/null 2>&1
 systemctl restart sssd
 sleep 3
 check_service sssd
 
-# Etape 5 : Verifier la resolution des utilisateurs LDAP
 log_info "Verification de la resolution LDAP via SSSD..."
 
 if ! getent passwd enseignant01 >/dev/null; then
@@ -106,10 +99,8 @@ fi
 
 log_ok "Utilisateurs et groupes LDAP resolus."
 
-# Etape 6 : Appliquer les permissions POSIX et ACL
 log_info "Application des permissions POSIX et ACL..."
 
-# cours : lecture pour apprenants, ecriture pour enseignants
 chown root:enseignants "$SHARES_BASE/cours"
 chmod 2775 "$SHARES_BASE/cours"
 setfacl -R -m g:enseignants:rwx "$SHARES_BASE/cours"
@@ -117,7 +108,6 @@ setfacl -R -m g:apprenants:r-x "$SHARES_BASE/cours"
 setfacl -R -d -m g:enseignants:rwx "$SHARES_BASE/cours"
 setfacl -R -d -m g:apprenants:r-x "$SHARES_BASE/cours"
 
-# tp : ecriture pour tous
 chown root:enseignants "$SHARES_BASE/tp"
 chmod 2775 "$SHARES_BASE/tp"
 setfacl -R -m g:enseignants:rwx "$SHARES_BASE/tp"
@@ -125,7 +115,6 @@ setfacl -R -m g:apprenants:rwx "$SHARES_BASE/tp"
 setfacl -R -d -m g:enseignants:rwx "$SHARES_BASE/tp"
 setfacl -R -d -m g:apprenants:rwx "$SHARES_BASE/tp"
 
-# public : lecture pour apprenants, ecriture pour enseignants
 chown root:enseignants "$SHARES_BASE/public"
 chmod 2775 "$SHARES_BASE/public"
 setfacl -R -m g:enseignants:rwx "$SHARES_BASE/public"
@@ -137,7 +126,6 @@ setfacl -R -d -m o::r-x "$SHARES_BASE/public"
 
 log_ok "Permissions appliquees."
 
-# Etape 7 : Redemarrer Samba
 log_info "Redemarrage de Samba..."
 systemctl restart smbd nmbd
 sleep 2

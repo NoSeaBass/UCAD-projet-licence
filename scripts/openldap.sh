@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Configure OpenLDAP : domaine, schema Samba, structure DIT, groupes, utilisateurs.
 
 set -euo pipefail
 
@@ -14,7 +13,6 @@ load_config
 LDIF_DIR="/root/ldap-ldifs"
 mkdir -p "$LDIF_DIR"
 
-# Etape 1 : Reconfigurer slapd
 log_info "Configuration du domaine LDAP et du mot de passe admin..."
 
 if slapcat -b "$LDAP_BASE_DN" >/dev/null 2>&1; then
@@ -36,7 +34,6 @@ fi
 
 check_service slapd
 
-# Etape 2 : Charger le schema Samba
 log_info "Chargement du schema Samba dans OpenLDAP..."
 
 if ldapsearch -Y EXTERNAL -H ldapi:/// -b "cn=schema,cn=config" -s base "(objectClass=*)" olcAttributeTypes 2>/dev/null | grep -q "sambaNTPassword"; then
@@ -46,7 +43,6 @@ else
     log_ok "Schema Samba charge."
 fi
 
-# Etape 3 : Generer le SID du domaine Samba
 log_info "Generation du SID du domaine Samba..."
 
 if [[ -f /var/lib/samba/private/secrets.tdb ]]; then
@@ -64,7 +60,6 @@ fi
 mkdir -p /etc/projet-soutenance
 echo "SAMBA_DOMAIN_SID=\"$SAMBA_DOMAIN_SID\"" > /etc/projet-soutenance/samba-sid.env
 
-# Etape 4 : Creer la structure DIT
 log_info "Creation de la structure DIT..."
 
 cat > "$LDIF_DIR/01-structure.ldif" <<EOF
@@ -77,13 +72,12 @@ objectClass: organizationalUnit
 ou: groups
 EOF
 
-if ldapsearch -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -b "ou=users,$LDAP_BASE_DN" "(objectClass=*)" dn 2>/dev/null | grep -q "^dn:"; then
+if ldapsearch -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -b "ou=users,$LDAP_BASE_DN" "(objectClass=*)" dn 2>/dev/null | grep -q "^dn:"; then
     log_ok "Structure DIT deja presente."
 else
-    ldapadd -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/01-structure.ldif"
+    ldapadd -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/01-structure.ldif"
 fi
 
-# Etape 5 : Creer les groupes POSIX
 log_info "Creation des groupes POSIX..."
 
 cat > "$LDIF_DIR/02-groupes.ldif" <<EOF
@@ -98,13 +92,12 @@ cn: apprenants
 gidNumber: $APPRENANTS_GID
 EOF
 
-if ldapsearch -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -b "cn=enseignants,ou=groups,$LDAP_BASE_DN" "(objectClass=*)" dn 2>/dev/null | grep -q "^dn:"; then
+if ldapsearch -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -b "cn=enseignants,ou=groups,$LDAP_BASE_DN" "(objectClass=*)" dn 2>/dev/null | grep -q "^dn:"; then
     log_ok "Groupes POSIX deja presents."
 else
-    ldapadd -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/02-groupes.ldif"
+    ldapadd -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/02-groupes.ldif"
 fi
 
-# Etape 6 : Creer les utilisateurs POSIX
 log_info "Creation des utilisateurs POSIX..."
 
 SSHA_HASH=$(slappasswd -h '{SSHA}' -s "$USER_PASSWORD")
@@ -175,13 +168,12 @@ loginShell: /bin/bash
 userPassword: $SSHA_HASH
 EOF
 
-if ldapsearch -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -b "uid=enseignant01,ou=users,$LDAP_BASE_DN" "(objectClass=*)" dn 2>/dev/null | grep -q "^dn:"; then
+if ldapsearch -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -b "uid=enseignant01,ou=users,$LDAP_BASE_DN" "(objectClass=*)" dn 2>/dev/null | grep -q "^dn:"; then
     log_ok "Utilisateurs POSIX deja presents."
 else
-    ldapadd -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/03-utilisateurs.ldif"
+    ldapadd -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/03-utilisateurs.ldif"
 fi
 
-# Etape 7 : Ajouter les membres aux groupes
 log_info "Ajout des membres aux groupes..."
 
 cat > "$LDIF_DIR/04-membres.ldif" <<EOF
@@ -198,95 +190,55 @@ memberUid: apprenant01
 memberUid: apprenant02
 EOF
 
-if ldapsearch -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -b "cn=enseignants,ou=groups,$LDAP_BASE_DN" "(memberUid=enseignant01)" memberUid 2>/dev/null | grep -q "memberUid: enseignant01"; then
+if ldapsearch -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -b "cn=enseignants,ou=groups,$LDAP_BASE_DN" "(memberUid=enseignant01)" memberUid 2>/dev/null | grep -q "memberUid: enseignant01"; then
     log_ok "Membres deja ajoutes."
 else
-    ldapmodify -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/04-membres.ldif"
+    ldapmodify -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/04-membres.ldif"
 fi
 
-# Etape 8 : Ajouter les attributs Samba aux utilisateurs
 log_info "Ajout des attributs Samba aux utilisateurs..."
 
 NTLM_HASH=$(printf '%s' "$USER_PASSWORD" | iconv -t UTF-16LE | openssl dgst -md4 -provider legacy | awk '{print toupper($NF)}')
 TIMESTAMP=$(date +%s)
 
-cat > "$LDIF_DIR/06-samba-users.ldif" <<EOF
-dn: uid=enseignant01,ou=users,$LDAP_BASE_DN
+: > "$LDIF_DIR/06-samba-users.ldif"
+for account in "enseignant01:$ENSEIGNANT01_UID" "enseignant02:$ENSEIGNANT02_UID" \
+    "apprenant01:$APPRENANT01_UID" "apprenant02:$APPRENANT02_UID"; do
+    uid="${account%%:*}"
+    uid_number="${account#*:}"
+    user_dn="uid=$uid,ou=users,$LDAP_BASE_DN"
+    cat >> "$LDIF_DIR/06-samba-users.ldif" <<EOF
+dn: $user_dn
 changetype: modify
-add: objectClass
-objectClass: sambaSAMAccount
--
-add: sambaSID
-sambaSID: $SAMBA_DOMAIN_SID-$ENSEIGNANT01_UID
--
-add: sambaNTPassword
-sambaNTPassword: $NTLM_HASH
--
-add: sambaAcctFlags
-sambaAcctFlags: [U]
--
-add: sambaPwdLastSet
-sambaPwdLastSet: $TIMESTAMP
-
-dn: uid=enseignant02,ou=users,$LDAP_BASE_DN
-changetype: modify
-add: objectClass
-objectClass: sambaSAMAccount
--
-add: sambaSID
-sambaSID: $SAMBA_DOMAIN_SID-$ENSEIGNANT02_UID
--
-add: sambaNTPassword
-sambaNTPassword: $NTLM_HASH
--
-add: sambaAcctFlags
-sambaAcctFlags: [U]
--
-add: sambaPwdLastSet
-sambaPwdLastSet: $TIMESTAMP
-
-dn: uid=apprenant01,ou=users,$LDAP_BASE_DN
-changetype: modify
-add: objectClass
-objectClass: sambaSAMAccount
--
-add: sambaSID
-sambaSID: $SAMBA_DOMAIN_SID-$APPRENANT01_UID
--
-add: sambaNTPassword
-sambaNTPassword: $NTLM_HASH
--
-add: sambaAcctFlags
-sambaAcctFlags: [U]
--
-add: sambaPwdLastSet
-sambaPwdLastSet: $TIMESTAMP
-
-dn: uid=apprenant02,ou=users,$LDAP_BASE_DN
-changetype: modify
-add: objectClass
-objectClass: sambaSAMAccount
--
-add: sambaSID
-sambaSID: $SAMBA_DOMAIN_SID-$APPRENANT02_UID
--
-add: sambaNTPassword
-sambaNTPassword: $NTLM_HASH
--
-add: sambaAcctFlags
-sambaAcctFlags: [U]
--
-add: sambaPwdLastSet
-sambaPwdLastSet: $TIMESTAMP
 EOF
+    if ! ldapsearch -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+        -b "$user_dn" -s base "(objectClass=sambaSAMAccount)" dn 2>/dev/null | grep -q '^dn:'; then
+        cat >> "$LDIF_DIR/06-samba-users.ldif" <<EOF
+add: objectClass
+objectClass: sambaSAMAccount
+-
+EOF
+    fi
+    cat >> "$LDIF_DIR/06-samba-users.ldif" <<EOF
+replace: userPassword
+userPassword: $SSHA_HASH
+-
+replace: sambaSID
+sambaSID: $SAMBA_DOMAIN_SID-$uid_number
+-
+replace: sambaNTPassword
+sambaNTPassword: $NTLM_HASH
+-
+replace: sambaAcctFlags
+sambaAcctFlags: [U]
+-
+replace: sambaPwdLastSet
+sambaPwdLastSet: $TIMESTAMP
 
-if ldapsearch -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -b "uid=enseignant01,ou=users,$LDAP_BASE_DN" "(objectClass=sambaSAMAccount)" dn 2>/dev/null | grep -q "^dn:"; then
-    log_ok "Attributs Samba deja presents sur les utilisateurs."
-else
-    ldapmodify -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/06-samba-users.ldif"
-fi
+EOF
+done
+ldapmodify -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/06-samba-users.ldif"
 
-# Etape 9 : Ajouter les attributs Samba aux groupes
 log_info "Ajout des attributs Samba aux groupes..."
 
 cat > "$LDIF_DIR/07-samba-groups.ldif" <<EOF
@@ -319,46 +271,43 @@ add: displayName
 displayName: Apprenants
 EOF
 
-if ldapsearch -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -b "cn=enseignants,ou=groups,$LDAP_BASE_DN" "(objectClass=sambaGroupMapping)" dn 2>/dev/null | grep -q "^dn:"; then
+if ldapsearch -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -b "cn=enseignants,ou=groups,$LDAP_BASE_DN" "(objectClass=sambaGroupMapping)" dn 2>/dev/null | grep -q "^dn:"; then
     log_ok "Attributs Samba deja presents sur les groupes."
 else
-    ldapmodify -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/07-samba-groups.ldif"
+    ldapmodify -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/07-samba-groups.ldif"
 fi
 
-# Etape 10 : Creer l'entree sambaDomainName
 log_info "Creation de l'entree sambaDomainName..."
 
 cat > "$LDIF_DIR/08-samba-domain.ldif" <<EOF
-dn: sambaDomainName=$SAMBA_WORKGROUP,$LDAP_BASE_DN
+dn: sambaDomainName=$SAMBA_NETBIOS_NAME,$LDAP_BASE_DN
 objectClass: sambaDomain
-sambaDomainName: $SAMBA_WORKGROUP
+sambaDomainName: $SAMBA_NETBIOS_NAME
 sambaSID: $SAMBA_DOMAIN_SID
 sambaAlgorithmicRidBase: 1000
 EOF
 
-if ldapsearch -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -b "sambaDomainName=$SAMBA_WORKGROUP,$LDAP_BASE_DN" "(objectClass=*)" dn 2>/dev/null | grep -q "^dn:"; then
-    log_ok "Entree sambaDomainName deja presente."
+if ldapsearch -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+    -b "sambaDomainName=$SAMBA_NETBIOS_NAME,$LDAP_BASE_DN" -s base "(objectClass=sambaDomain)" dn 2>/dev/null | grep -q '^dn:'; then
+    cat > "$LDIF_DIR/08-samba-domain.ldif" <<EOF
+dn: sambaDomainName=$SAMBA_NETBIOS_NAME,$LDAP_BASE_DN
+changetype: modify
+replace: sambaSID
+sambaSID: $SAMBA_DOMAIN_SID
+-
+replace: sambaAlgorithmicRidBase
+sambaAlgorithmicRidBase: 1000
+EOF
+    ldapmodify -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/08-samba-domain.ldif"
+    log_ok "Entree sambaDomainName alignee sur $SAMBA_NETBIOS_NAME."
 else
-    ldapadd -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/08-samba-domain.ldif"
+    ldapadd -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/08-samba-domain.ldif"
 fi
 
-# Etape 11 : Creer les comptes de service
 log_info "Creation des comptes de service LDAP..."
 
 SERVICES_OU="ou=services,$LDAP_BASE_DN"
 SERVICE_ENV="/etc/projet-soutenance/service-accounts.env"
-
-# Generer ou recuperer les mots de passe de service
-generate_or_get_password() {
-    local var_name="$1"
-    local file="$2"
-    if [[ -f "$file" ]] && grep -q "^${var_name}=" "$file"; then
-        # shellcheck disable=SC1090
-        grep "^${var_name}=" "$file" | cut -d= -f2- | tr -d '"'
-    else
-        openssl rand -base64 24 | tr -d '/+=' | head -c 32
-    fi
-}
 
 mkdir -p /etc/projet-soutenance
 chmod 700 /etc/projet-soutenance
@@ -369,8 +318,6 @@ if [[ ! -f "$SERVICE_ENV" ]]; then
     RADIUS_BIND_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
 
     cat > "$SERVICE_ENV" <<EOF
-# Comptes de service LDAP
-# Genere automatiquement le $(date)
 SSSD_BIND_DN="cn=sssd,ou=services,$LDAP_BASE_DN"
 SSSD_BIND_PASSWORD="$SSSD_BIND_PASSWORD"
 SAMBA_BIND_DN="cn=samba,ou=services,$LDAP_BASE_DN"
@@ -385,13 +332,22 @@ else
     log_ok "Fichier des comptes de service deja present."
 fi
 
-# shellcheck disable=SC1090
 source "$SERVICE_ENV"
 
-# Creer l'OU services et les trois comptes si absents
+if ! ldapsearch -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+    -b "$SERVICES_OU" -s base "(objectClass=*)" dn 2>/dev/null | grep -q "^dn:"; then
+
+    cat > "$LDIF_DIR/09-ou-services.ldif" <<EOF
+dn: $SERVICES_OU
+objectClass: organizationalUnit
+ou: services
+EOF
+    ldapadd -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" -f "$LDIF_DIR/09-ou-services.ldif"
+fi
+
 for account in sssd samba radius; do
-    account_dn="cn=$account,ou=services,$LDAP_BASE_DN"
-    if ldapsearch -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+    account_dn="cn=$account,$SERVICES_OU"
+    if ldapsearch -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
         -b "$account_dn" -s base "(objectClass=*)" dn 2>/dev/null | grep -q "^dn:"; then
         log_ok "Compte de service $account deja present."
         continue
@@ -406,10 +362,6 @@ for account in sssd samba radius; do
     HASH=$(slappasswd -h '{SSHA}' -s "$password")
 
     cat > "$LDIF_DIR/09-service-$account.ldif" <<EOF
-dn: ou=services,$LDAP_BASE_DN
-objectClass: organizationalUnit
-ou: services
-
 dn: $account_dn
 objectClass: simpleSecurityObject
 objectClass: organizationalRole
@@ -418,15 +370,15 @@ description: Compte de service pour $account
 userPassword: $HASH
 EOF
 
-    if ldapadd -x -H ldap://localhost -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
+    if ldapadd -x -H ldap://127.0.0.1 -D "$LDAP_ADMIN_DN" -w "$LDAP_ADMIN_PASSWORD" \
         -f "$LDIF_DIR/09-service-$account.ldif" >/dev/null 2>&1; then
         log_ok "Compte de service $account cree."
     else
         log_error "Echec de creation du compte de service $account."
+        exit 1
     fi
 done
 
-# Etape 12 : Appliquer les ACL sur les attributs sensibles
 log_info "Application des ACL restrictives sur les attributs sensibles..."
 
 ACL_LDIF=$(mktemp)
@@ -444,7 +396,7 @@ olcAccess: {0}to attrs=userPassword,sambaLMPassword,sambaNTPassword
   by * none
 olcAccess: {1}to *
   by dn.exact="$LDAP_ADMIN_DN" write
-  by dn.exact="$SAMBA_BIND_DN" read
+  by dn.exact="$SAMBA_BIND_DN" write
   by dn.exact="$SSSD_BIND_DN" read
   by dn.exact="$RADIUS_BIND_DN" read
   by self read
@@ -455,16 +407,7 @@ EOF
 if ldapmodify -Y EXTERNAL -H ldapi:/// -f "$ACL_LDIF" >/dev/null 2>&1; then
     log_ok "ACL restrictives appliquees."
 else
-    log_error "Echec de l'application des ACL."
-    cat "$ACL_LDIF"
+    rm -f "$ACL_LDIF"
+    die "Echec de l'application des ACL LDAP."
 fi
 rm -f "$ACL_LDIF"
-
-# Verification immediate : SSSD doit toujours resoudre les utilisateurs
-if getent passwd enseignant01 >/dev/null 2>&1; then
-    log_ok "SSSD resout toujours les utilisateurs apres ACL."
-else
-    log_error "SSSD ne resout plus les utilisateurs. Verifier les ACL."
-fi
-
-log_ok "OpenLDAP configure."

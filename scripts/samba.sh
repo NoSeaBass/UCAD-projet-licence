@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Configure Samba : smb.conf, mot de passe LDAP, repertoires de partages.
 
 set -euo pipefail
 
@@ -11,10 +10,8 @@ source "${SCRIPT_DIR}/lib.sh"
 require_root
 load_config
 
-# shellcheck disable=SC1091
 source /etc/projet-soutenance/service-accounts.env
 
-# Etape 1 : Recuperer le SID du domaine
 SID_FILE="/etc/projet-soutenance/samba-sid.env"
 if [[ ! -f "$SID_FILE" ]]; then
     die "Fichier $SID_FILE introuvable. Executer openldap.sh d'abord."
@@ -27,7 +24,6 @@ fi
 
 log_info "SID du domaine : $SAMBA_DOMAIN_SID"
 
-# Etape 2 : Ecrire smb.conf
 log_info "Ecriture de /etc/samba/smb.conf..."
 
 if [[ -f /etc/samba/smb.conf ]]; then
@@ -41,7 +37,7 @@ cat > /etc/samba/smb.conf <<EOF
    netbios name = $SAMBA_NETBIOS_NAME
    security = user
 
-   passdb backend = ldapsam:ldap://localhost
+   passdb backend = ldapsam:ldap://127.0.0.1
    ldap admin dn = $SAMBA_BIND_DN
    ldap suffix = $LDAP_BASE_DN
    ldap user suffix = ou=users
@@ -110,12 +106,10 @@ EOF
 
 log_ok "smb.conf ecrit."
 
-# Etape 3 : Verifier la syntaxe de smb.conf
 log_info "Verification de smb.conf..."
 testparm -s >/dev/null
 log_ok "smb.conf valide."
 
-# Etape 4 : Stocker le mot de passe LDAP admin dans secrets.tdb
 log_info "Enregistrement du mot de passe LDAP admin dans Samba..."
 
 TMP_PW=$(mktemp)
@@ -130,14 +124,12 @@ fi
 rm -f "$TMP_PW"
 log_ok "Mot de passe LDAP admin enregistre."
 
-# Etape 5 : Creer les repertoires de partages
 log_info "Creation des repertoires de partages..."
 
 mkdir -p "$SHARES_BASE"/{cours,tp,public}
 chmod 2775 "$SHARES_BASE"/{cours,tp,public}
 log_ok "Repertoires crees sous $SHARES_BASE (permissions appliquees dans integration.sh)."
 
-# Etape 6 : Demarrer Samba
 log_info "Demarrage de Samba..."
 
 systemctl enable smbd nmbd >/dev/null 2>&1
